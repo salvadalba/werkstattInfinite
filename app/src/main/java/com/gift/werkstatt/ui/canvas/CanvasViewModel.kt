@@ -18,9 +18,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlin.math.sqrt
 
-// Use constants from FixedCanvas
-private const val CANVAS_WIDTH = 1500f
-private const val CANVAS_HEIGHT = 2250f
+// CANVAS_WIDTH and CANVAS_HEIGHT are defined in FixedCanvas.kt
 
 data class CanvasState(
     val currentEntry: CanvasEntry? = null,
