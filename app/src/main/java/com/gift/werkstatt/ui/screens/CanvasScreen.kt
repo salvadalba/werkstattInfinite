@@ -11,15 +11,19 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.core.content.FileProvider
@@ -35,6 +39,7 @@ import com.gift.werkstatt.data.models.Stroke
 import java.io.File
 import java.io.FileOutputStream
 import java.util.UUID
+import kotlin.math.roundToInt
 
 @Composable
 fun CanvasScreen(
@@ -54,24 +59,28 @@ fun CanvasScreen(
     onStrokeWidthChange: (Float) -> Unit,
     onStrokeColorChange: (Long) -> Unit,
     onAddImage: (String, Float, Float) -> Unit,
+    onUpdateImagePosition: (String, Float, Float) -> Unit,
+    onDeleteImage: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var showPenPicker by remember { mutableStateOf(false) }
     val context = LocalContext.current
+    val density = LocalDensity.current
     
     // Image picker launcher
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         uri?.let { selectedUri ->
-            // Copy image to internal storage and add to canvas
             val savedPath = saveImageToInternal(context, selectedUri)
             if (savedPath != null) {
-                // Get image dimensions
                 val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
                 BitmapFactory.decodeFile(savedPath, options)
-                val width = minOf(options.outWidth.toFloat(), 400f)
-                val height = width * (options.outHeight.toFloat() / options.outWidth.toFloat())
+                // Scale down to max 300dp width
+                val maxWidth = 300f
+                val scale = if (options.outWidth > maxWidth) maxWidth / options.outWidth else 1f
+                val width = options.outWidth * scale
+                val height = options.outHeight * scale
                 onAddImage(savedPath, width, height)
             }
         }
@@ -117,21 +126,43 @@ fun CanvasScreen(
                     eraserMode = state.eraserMode
                 )
                 
-                // Render images on top of canvas
+                // Render draggable images on top of canvas
                 loadedImages.forEach { (canvasImage, imageBitmap) ->
+                    val screenX = with(density) { 
+                        ((canvasImage.x + state.viewportOffset.x) * state.zoom).dp.toPx() 
+                    }
+                    val screenY = with(density) { 
+                        ((canvasImage.y + state.viewportOffset.y) * state.zoom).dp.toPx() 
+                    }
+                    val imgWidth = with(density) { (canvasImage.width * state.zoom).dp.toPx() }
+                    val imgHeight = with(density) { (canvasImage.height * state.zoom).dp.toPx() }
+                    
                     Image(
                         bitmap = imageBitmap,
-                        contentDescription = "Imported image",
+                        contentDescription = "Imported image - drag to move, long press to delete",
                         contentScale = ContentScale.Fit,
                         modifier = Modifier
-                            .offset(
-                                x = ((canvasImage.x + state.viewportOffset.x) * state.zoom).dp,
-                                y = ((canvasImage.y + state.viewportOffset.y) * state.zoom).dp
-                            )
+                            .offset { IntOffset(screenX.roundToInt(), screenY.roundToInt()) }
                             .size(
-                                width = (canvasImage.width * state.zoom).dp,
-                                height = (canvasImage.height * state.zoom).dp
+                                width = with(density) { imgWidth.toDp() },
+                                height = with(density) { imgHeight.toDp() }
                             )
+                            .pointerInput(canvasImage.id, state.zoom) {
+                                detectDragGestures { change, dragAmount ->
+                                    change.consume()
+                                    // Convert screen delta to canvas delta
+                                    val canvasDeltaX = dragAmount.x / state.zoom / density.density
+                                    val canvasDeltaY = dragAmount.y / state.zoom / density.density
+                                    onUpdateImagePosition(canvasImage.id, canvasDeltaX, canvasDeltaY)
+                                }
+                            }
+                            .pointerInput(canvasImage.id) {
+                                detectTapGestures(
+                                    onLongPress = {
+                                        onDeleteImage(canvasImage.id)
+                                    }
+                                )
+                            }
                     )
                 }
             }

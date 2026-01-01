@@ -234,17 +234,38 @@ class CanvasViewModel(
     }
     
     fun addImage(filePath: String, width: Float, height: Float) {
-        val centerX = -_state.value.viewportOffset.x
-        val centerY = -_state.value.viewportOffset.y
+        // Place image at center of visible canvas area (0,0 in canvas coordinates)
         val newImage = CanvasImage(
             filePath = filePath,
-            x = centerX - width / 2,
-            y = centerY - height / 2,
+            x = -width / 2,
+            y = -height / 2,
             width = width,
             height = height
         )
         _state.value = _state.value.copy(
             images = _state.value.images + newImage
+        )
+        markUnsaved()
+    }
+    
+    fun updateImagePosition(imageId: String, deltaX: Float, deltaY: Float) {
+        val updatedImages = _state.value.images.map { img ->
+            if (img.id == imageId) {
+                img.copy(
+                    x = img.x + deltaX,
+                    y = img.y + deltaY
+                )
+            } else {
+                img
+            }
+        }
+        _state.value = _state.value.copy(images = updatedImages)
+        markUnsaved()
+    }
+    
+    fun deleteImage(imageId: String) {
+        _state.value = _state.value.copy(
+            images = _state.value.images.filter { it.id != imageId }
         )
         markUnsaved()
     }

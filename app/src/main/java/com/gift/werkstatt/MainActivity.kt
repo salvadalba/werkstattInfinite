@@ -133,7 +133,9 @@ fun WerkstattApp(repository: CanvasRepository) {
             onTitleClick = { showTitleDialog = true },
             onStrokeWidthChange = viewModel::setStrokeWidth,
             onStrokeColorChange = viewModel::setStrokeColor,
-            onAddImage = viewModel::addImage
+            onAddImage = viewModel::addImage,
+            onUpdateImagePosition = viewModel::updateImagePosition,
+            onDeleteImage = viewModel::deleteImage
         )
     }
 }
