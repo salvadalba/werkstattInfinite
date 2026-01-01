@@ -10,21 +10,12 @@ import android.graphics.Path
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.core.content.FileProvider
 import com.gift.werkstatt.ui.canvas.CanvasState
@@ -39,7 +30,8 @@ import com.gift.werkstatt.data.models.Stroke
 import java.io.File
 import java.io.FileOutputStream
 import java.util.UUID
-import kotlin.math.roundToInt
+import kotlin.math.max
+import kotlin.math.min
 
 @Composable
 fun CanvasScreen(
@@ -59,13 +51,10 @@ fun CanvasScreen(
     onStrokeWidthChange: (Float) -> Unit,
     onStrokeColorChange: (Long) -> Unit,
     onAddImage: (String, Float, Float) -> Unit,
-    onUpdateImagePosition: (String, Float, Float) -> Unit,
-    onDeleteImage: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var showPenPicker by remember { mutableStateOf(false) }
     val context = LocalContext.current
-    val density = LocalDensity.current
     
     // Image picker launcher
     val imagePickerLauncher = rememberLauncherForActivityResult(
@@ -76,24 +65,12 @@ fun CanvasScreen(
             if (savedPath != null) {
                 val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
                 BitmapFactory.decodeFile(savedPath, options)
-                // Scale down to max 300dp width
+                // Scale down to max 300 pixels width
                 val maxWidth = 300f
                 val scale = if (options.outWidth > maxWidth) maxWidth / options.outWidth else 1f
                 val width = options.outWidth * scale
                 val height = options.outHeight * scale
                 onAddImage(savedPath, width, height)
-            }
-        }
-    }
-    
-    // Load images for display
-    val loadedImages = remember(state.images) {
-        state.images.mapNotNull { canvasImage ->
-            try {
-                val bitmap = BitmapFactory.decodeFile(canvasImage.filePath)
-                bitmap?.let { canvasImage to it.asImageBitmap() }
-            } catch (e: Exception) {
-                null
             }
         }
     }
@@ -107,10 +84,11 @@ fun CanvasScreen(
                 onTitleClick = onTitleClick
             )
             
-            // Canvas area with images
+            // Canvas area - images are now rendered INSIDE the canvas
             Box(modifier = Modifier.weight(1f)) {
                 InfiniteCanvas(
                     strokes = state.strokes,
+                    images = state.images,
                     currentStroke = state.currentStroke,
                     onStrokeStart = onStrokeStart,
                     onStrokeMove = onStrokeMove,
@@ -125,46 +103,6 @@ fun CanvasScreen(
                     strokeWidth = state.strokeWidth,
                     eraserMode = state.eraserMode
                 )
-                
-                // Render draggable images on top of canvas
-                loadedImages.forEach { (canvasImage, imageBitmap) ->
-                    val screenX = with(density) { 
-                        ((canvasImage.x + state.viewportOffset.x) * state.zoom).dp.toPx() 
-                    }
-                    val screenY = with(density) { 
-                        ((canvasImage.y + state.viewportOffset.y) * state.zoom).dp.toPx() 
-                    }
-                    val imgWidth = with(density) { (canvasImage.width * state.zoom).dp.toPx() }
-                    val imgHeight = with(density) { (canvasImage.height * state.zoom).dp.toPx() }
-                    
-                    Image(
-                        bitmap = imageBitmap,
-                        contentDescription = "Imported image - drag to move, long press to delete",
-                        contentScale = ContentScale.Fit,
-                        modifier = Modifier
-                            .offset { IntOffset(screenX.roundToInt(), screenY.roundToInt()) }
-                            .size(
-                                width = with(density) { imgWidth.toDp() },
-                                height = with(density) { imgHeight.toDp() }
-                            )
-                            .pointerInput(canvasImage.id, state.zoom) {
-                                detectDragGestures { change, dragAmount ->
-                                    change.consume()
-                                    // Convert screen delta to canvas delta
-                                    val canvasDeltaX = dragAmount.x / state.zoom / density.density
-                                    val canvasDeltaY = dragAmount.y / state.zoom / density.density
-                                    onUpdateImagePosition(canvasImage.id, canvasDeltaX, canvasDeltaY)
-                                }
-                            }
-                            .pointerInput(canvasImage.id) {
-                                detectTapGestures(
-                                    onLongPress = {
-                                        onDeleteImage(canvasImage.id)
-                                    }
-                                )
-                            }
-                    )
-                }
             }
             
             // Bottom toolbar
@@ -230,33 +168,85 @@ private fun saveImageToInternal(context: Context, uri: Uri): String? {
 }
 
 /**
- * Export canvas strokes and images to PNG and share
+ * Calculate bounding box of all content (strokes + images)
+ */
+private fun calculateBoundingBox(strokes: List<Stroke>, images: List<CanvasImage>): android.graphics.RectF {
+    var minX = Float.MAX_VALUE
+    var minY = Float.MAX_VALUE
+    var maxX = Float.MIN_VALUE
+    var maxY = Float.MIN_VALUE
+    
+    // Include stroke points
+    strokes.forEach { stroke ->
+        stroke.points.forEach { point ->
+            minX = min(minX, point.x)
+            minY = min(minY, point.y)
+            maxX = max(maxX, point.x)
+            maxY = max(maxY, point.y)
+        }
+    }
+    
+    // Include images
+    images.forEach { img ->
+        minX = min(minX, img.x)
+        minY = min(minY, img.y)
+        maxX = max(maxX, img.x + img.width)
+        maxY = max(maxY, img.y + img.height)
+    }
+    
+    // If empty, return small default area
+    if (minX == Float.MAX_VALUE) {
+        return android.graphics.RectF(-100f, -100f, 100f, 100f)
+    }
+    
+    // Add padding
+    val padding = 50f
+    return android.graphics.RectF(minX - padding, minY - padding, maxX + padding, maxY + padding)
+}
+
+/**
+ * Export canvas strokes and images to PNG centered on content
  */
 private fun exportCanvas(context: Context, strokes: List<Stroke>, images: List<CanvasImage>, title: String) {
-    val width = 2048
-    val height = 2048
-    val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+    // Calculate bounding box of all content
+    val bounds = calculateBoundingBox(strokes, images)
+    
+    // Calculate export size (with some padding, max 4096 for performance)
+    val contentWidth = bounds.width()
+    val contentHeight = bounds.height()
+    val maxSize = 4096f
+    val scale = if (contentWidth > maxSize || contentHeight > maxSize) {
+        min(maxSize / contentWidth, maxSize / contentHeight)
+    } else {
+        1f
+    }
+    
+    val exportWidth = (contentWidth * scale).toInt().coerceAtLeast(200)
+    val exportHeight = (contentHeight * scale).toInt().coerceAtLeast(200)
+    
+    val bitmap = Bitmap.createBitmap(exportWidth, exportHeight, Bitmap.Config.ARGB_8888)
     val canvas = Canvas(bitmap)
     
     canvas.drawColor(android.graphics.Color.WHITE)
     
-    val offsetX = width / 2f
-    val offsetY = height / 2f
+    // Offset to center content at origin of export
+    val offsetX = -bounds.left * scale
+    val offsetY = -bounds.top * scale
     
     // Draw images first
     images.forEach { img ->
         try {
             val imgBitmap = BitmapFactory.decodeFile(img.filePath)
             if (imgBitmap != null) {
+                val destLeft = (img.x * scale + offsetX)
+                val destTop = (img.y * scale + offsetY)
+                val destRight = destLeft + img.width * scale
+                val destBottom = destTop + img.height * scale
+                
                 canvas.drawBitmap(
                     imgBitmap,
                     null,
-                    android.graphics.RectF(
-                        img.x + offsetX,
-                        img.y + offsetY,
-                        img.x + offsetX + img.width,
-                        img.y + offsetY + img.height
-                    ),
+                    android.graphics.RectF(destLeft, destTop, destRight, destBottom),
                     null
                 )
             }
@@ -269,7 +259,7 @@ private fun exportCanvas(context: Context, strokes: List<Stroke>, images: List<C
     strokes.forEach { stroke ->
         val paint = Paint().apply {
             color = stroke.color.toInt()
-            strokeWidth = stroke.width
+            strokeWidth = stroke.width * scale
             style = Paint.Style.STROKE
             strokeCap = Paint.Cap.ROUND
             strokeJoin = Paint.Join.ROUND
@@ -278,18 +268,26 @@ private fun exportCanvas(context: Context, strokes: List<Stroke>, images: List<C
         
         if (stroke.points.size >= 2) {
             val path = Path()
-            path.moveTo(stroke.points[0].x + offsetX, stroke.points[0].y + offsetY)
+            path.moveTo(
+                stroke.points[0].x * scale + offsetX, 
+                stroke.points[0].y * scale + offsetY
+            )
             
             for (i in 1 until stroke.points.size) {
                 val prev = stroke.points[i - 1]
                 val curr = stroke.points[i]
-                val midX = (prev.x + curr.x) / 2 + offsetX
-                val midY = (prev.y + curr.y) / 2 + offsetY
-                path.quadTo(prev.x + offsetX, prev.y + offsetY, midX, midY)
+                val midX = (prev.x + curr.x) / 2 * scale + offsetX
+                val midY = (prev.y + curr.y) / 2 * scale + offsetY
+                path.quadTo(
+                    prev.x * scale + offsetX, 
+                    prev.y * scale + offsetY, 
+                    midX, 
+                    midY
+                )
             }
             
             val last = stroke.points.last()
-            path.lineTo(last.x + offsetX, last.y + offsetY)
+            path.lineTo(last.x * scale + offsetX, last.y * scale + offsetY)
             
             canvas.drawPath(path, paint)
         }

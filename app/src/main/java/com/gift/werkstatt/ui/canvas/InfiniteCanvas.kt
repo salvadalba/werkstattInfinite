@@ -1,5 +1,6 @@
 package com.gift.werkstatt.ui.canvas
 
+import android.graphics.BitmapFactory
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -10,14 +11,20 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
+import com.gift.werkstatt.data.models.CanvasImage
 import com.gift.werkstatt.data.models.Stroke as StrokeData
 import com.gift.werkstatt.data.models.StrokePoint
 import com.gift.werkstatt.ui.theme.BauhausBlack
@@ -25,11 +32,12 @@ import com.gift.werkstatt.ui.theme.CanvasBackground
 import com.gift.werkstatt.ui.theme.GridColor
 
 /**
- * Infinite Canvas with pan, zoom, grid, and drawing capabilities
+ * Infinite Canvas with pan, zoom, grid, images and drawing capabilities
  */
 @Composable
 fun InfiniteCanvas(
     strokes: List<StrokeData>,
+    images: List<CanvasImage>,
     currentStroke: List<StrokePoint>,
     onStrokeStart: (StrokePoint) -> Unit,
     onStrokeMove: (StrokePoint) -> Unit,
@@ -46,8 +54,17 @@ fun InfiniteCanvas(
     eraserMode: Boolean = false,
     modifier: Modifier = Modifier
 ) {
-    // Eraser cursor color
-    val eraserColor = Color.Red.copy(alpha = 0.5f)
+    // Load images as ImageBitmaps (with caching)
+    val loadedImages = remember(images) {
+        images.mapNotNull { canvasImage ->
+            try {
+                val bitmap = BitmapFactory.decodeFile(canvasImage.filePath)
+                bitmap?.asImageBitmap()?.let { canvasImage to it }
+            } catch (e: Exception) {
+                null
+            }
+        }
+    }
     
     Canvas(
         modifier = modifier
@@ -59,7 +76,7 @@ fun InfiniteCanvas(
                     var isDrawing = true
                     var lastPosition = firstDown.position
                     
-                    // Start drawing/erasing with first touch
+                    // Start drawing with first touch
                     val canvasPoint = screenToCanvas(firstDown.position, viewportOffset, zoom, snapToGrid, gridSize)
                     onStrokeStart(StrokePoint(canvasPoint.x, canvasPoint.y, 1f))
                     
@@ -88,7 +105,7 @@ fun InfiniteCanvas(
                             
                             event.changes.forEach { it.consume() }
                         } else if (pointerCount == 1 && isDrawing) {
-                            // Single finger: draw/erase
+                            // Single finger: draw
                             val change = event.changes.firstOrNull { it.pressed }
                             if (change != null) {
                                 val canvasPt = screenToCanvas(change.position, viewportOffset, zoom, snapToGrid, gridSize)
@@ -117,12 +134,21 @@ fun InfiniteCanvas(
                 GridMode.NONE -> { /* No grid */ }
             }
             
-            // Draw completed strokes
+            // Draw images FIRST (so strokes appear on top)
+            loadedImages.forEach { (canvasImage, imageBitmap) ->
+                drawImage(
+                    image = imageBitmap,
+                    dstOffset = IntOffset(canvasImage.x.toInt(), canvasImage.y.toInt()),
+                    dstSize = IntSize(canvasImage.width.toInt(), canvasImage.height.toInt())
+                )
+            }
+            
+            // Draw completed strokes ON TOP of images
             strokes.forEach { stroke ->
                 drawStroke(stroke.points, Color(stroke.color), stroke.width)
             }
             
-            // Draw current stroke being drawn (not in eraser mode)
+            // Draw current stroke being drawn
             if (currentStroke.isNotEmpty()) {
                 drawStroke(currentStroke, strokeColor, strokeWidth)
             }
