@@ -16,13 +16,13 @@ import com.gift.werkstatt.ui.theme.BauhausBlue
 import com.gift.werkstatt.ui.theme.BauhausWhite
 
 /**
- * Brutalist-style blocky button
+ * Brutalist-style icon-only button
  */
 @Composable
-fun BrutalistButton(
+fun BrutalistIconButton(
     onClick: () -> Unit,
     icon: ImageVector,
-    label: String,
+    contentDescription: String,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     backgroundColor: Color = BauhausBlue,
@@ -30,32 +30,22 @@ fun BrutalistButton(
 ) {
     Box(
         modifier = modifier
-            .size(64.dp)
+            .size(48.dp)
             .background(if (enabled) backgroundColor else backgroundColor.copy(alpha = 0.5f))
             .clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = label,
-                tint = contentColor,
-                modifier = Modifier.size(28.dp)
-            )
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelSmall,
-                color = contentColor
-            )
-        }
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = contentColor,
+            modifier = Modifier.size(24.dp)
+        )
     }
 }
 
 /**
- * Bottom toolbar with brutalist style
+ * Bottom toolbar with brutalist style - icons only
  */
 @Composable
 fun BrutalistToolbar(
@@ -66,8 +56,8 @@ fun BrutalistToolbar(
     onZoomIn: () -> Unit,
     onZoomOut: () -> Unit,
     onOpenList: () -> Unit,
+    onExport: () -> Unit,
     eraserMode: Boolean,
-    gridLabel: String,
     canUndo: Boolean,
     modifier: Modifier = Modifier
 ) {
@@ -75,52 +65,58 @@ fun BrutalistToolbar(
         modifier = modifier
             .fillMaxWidth()
             .background(BauhausBlue)
-            .padding(4.dp),
+            .padding(horizontal = 8.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        BrutalistButton(
+        BrutalistIconButton(
             onClick = onPenPicker,
             icon = Icons.Default.Edit,
-            label = "PEN"
+            contentDescription = "Pen settings"
         )
         
-        BrutalistButton(
+        BrutalistIconButton(
             onClick = onToggleEraser,
-            icon = if (eraserMode) Icons.Default.Close else Icons.Default.Delete,
-            label = if (eraserMode) "DRAW" else "ERASE",
+            icon = if (eraserMode) Icons.Default.Draw else Icons.Default.Delete,
+            contentDescription = if (eraserMode) "Draw mode" else "Eraser mode",
             backgroundColor = if (eraserMode) Color.Red else BauhausBlue
         )
         
-        BrutalistButton(
+        BrutalistIconButton(
             onClick = onUndo,
             icon = Icons.Default.Undo,
-            label = "UNDO",
+            contentDescription = "Undo",
             enabled = canUndo
         )
         
-        BrutalistButton(
+        BrutalistIconButton(
             onClick = onCycleGrid,
             icon = Icons.Default.GridOn,
-            label = gridLabel
+            contentDescription = "Cycle grid"
         )
         
-        BrutalistButton(
+        BrutalistIconButton(
             onClick = onZoomIn,
             icon = Icons.Default.ZoomIn,
-            label = "ZOOM+"
+            contentDescription = "Zoom in"
         )
         
-        BrutalistButton(
+        BrutalistIconButton(
             onClick = onZoomOut,
             icon = Icons.Default.ZoomOut,
-            label = "ZOOM-"
+            contentDescription = "Zoom out"
         )
         
-        BrutalistButton(
+        BrutalistIconButton(
+            onClick = onExport,
+            icon = Icons.Default.Share,
+            contentDescription = "Export"
+        )
+        
+        BrutalistIconButton(
             onClick = onOpenList,
             icon = Icons.Default.List,
-            label = "LIST"
+            contentDescription = "Canvas list"
         )
     }
 }
