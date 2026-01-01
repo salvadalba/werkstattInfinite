@@ -59,15 +59,15 @@ fun BrutalistButton(
  */
 @Composable
 fun BrutalistToolbar(
-    onNewCanvas: () -> Unit,
-    onOpenList: () -> Unit,
-    onUndo: () -> Unit,
-    onClear: () -> Unit,
-    onToggleGrid: () -> Unit,
-    onToggleSnap: () -> Unit,
     onPenPicker: () -> Unit,
-    gridEnabled: Boolean,
-    snapEnabled: Boolean,
+    onToggleEraser: () -> Unit,
+    onUndo: () -> Unit,
+    onCycleGrid: () -> Unit,
+    onZoomIn: () -> Unit,
+    onZoomOut: () -> Unit,
+    onOpenList: () -> Unit,
+    eraserMode: Boolean,
+    gridLabel: String,
     canUndo: Boolean,
     modifier: Modifier = Modifier
 ) {
@@ -86,6 +86,13 @@ fun BrutalistToolbar(
         )
         
         BrutalistButton(
+            onClick = onToggleEraser,
+            icon = if (eraserMode) Icons.Default.Close else Icons.Default.Delete,
+            label = if (eraserMode) "DRAW" else "ERASE",
+            backgroundColor = if (eraserMode) Color.Red else BauhausBlue
+        )
+        
+        BrutalistButton(
             onClick = onUndo,
             icon = Icons.Default.Undo,
             label = "UNDO",
@@ -93,27 +100,27 @@ fun BrutalistToolbar(
         )
         
         BrutalistButton(
-            onClick = onToggleGrid,
-            icon = if (gridEnabled) Icons.Default.GridOn else Icons.Default.GridOff,
-            label = "GRID"
+            onClick = onCycleGrid,
+            icon = Icons.Default.GridOn,
+            label = gridLabel
         )
         
         BrutalistButton(
-            onClick = onNewCanvas,
-            icon = Icons.Default.Add,
-            label = "NEW"
+            onClick = onZoomIn,
+            icon = Icons.Default.ZoomIn,
+            label = "ZOOM+"
+        )
+        
+        BrutalistButton(
+            onClick = onZoomOut,
+            icon = Icons.Default.ZoomOut,
+            label = "ZOOM-"
         )
         
         BrutalistButton(
             onClick = onOpenList,
             icon = Icons.Default.List,
             label = "LIST"
-        )
-        
-        BrutalistButton(
-            onClick = onClear,
-            icon = Icons.Default.Delete,
-            label = "CLEAR"
         )
     }
 }

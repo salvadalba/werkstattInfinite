@@ -2,6 +2,7 @@ package com.gift.werkstatt
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
@@ -54,6 +55,11 @@ fun WerkstattApp(repository: CanvasRepository) {
     var showList by remember { mutableStateOf(true) }
     var showTitleDialog by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf<String?>(null) }
+    
+    // Handle back button - go to list instead of closing app
+    BackHandler(enabled = !showList) {
+        showList = true
+    }
     
     // Show title edit dialog
     if (showTitleDialog && state.currentEntry != null) {
@@ -114,19 +120,13 @@ fun WerkstattApp(repository: CanvasRepository) {
             onStrokeEnd = viewModel::onStrokeEnd,
             onViewportChange = viewModel::onViewportChange,
             onZoomChange = viewModel::onZoomChange,
-            onNewCanvas = {
-                viewModel.createNewEntry()
-            },
-            onOpenList = {
-                showList = true
-            },
+            onOpenList = { showList = true },
             onUndo = viewModel::undoLastStroke,
-            onClear = viewModel::clearCanvas,
-            onToggleGrid = viewModel::toggleGrid,
-            onToggleSnap = viewModel::toggleSnapToGrid,
-            onTitleClick = {
-                showTitleDialog = true
-            },
+            onCycleGrid = viewModel::cycleGridMode,
+            onToggleEraser = viewModel::toggleEraserMode,
+            onZoomIn = viewModel::zoomIn,
+            onZoomOut = viewModel::zoomOut,
+            onTitleClick = { showTitleDialog = true },
             onStrokeWidthChange = viewModel::setStrokeWidth,
             onStrokeColorChange = viewModel::setStrokeColor
         )

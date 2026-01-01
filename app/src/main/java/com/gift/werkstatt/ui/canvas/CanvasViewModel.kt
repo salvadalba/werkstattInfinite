@@ -15,6 +15,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlin.math.sqrt
+
+enum class GridMode {
+    NONE,
+    LINES,
+    DOTS
+}
 
 data class CanvasState(
     val currentEntry: CanvasEntry? = null,
@@ -22,10 +29,11 @@ data class CanvasState(
     val currentStroke: List<StrokePoint> = emptyList(),
     val viewportOffset: Offset = Offset.Zero,
     val zoom: Float = 1f,
-    val gridEnabled: Boolean = true,
+    val gridMode: GridMode = GridMode.LINES,
     val snapToGrid: Boolean = false,
     val strokeColor: Long = BauhausBlack.value.toLong(),
     val strokeWidth: Float = 4f,
+    val eraserMode: Boolean = false,
     val isSaving: Boolean = false,
     val isLoading: Boolean = false,
     val allEntries: List<CanvasEntry> = emptyList()
@@ -80,18 +88,33 @@ class CanvasViewModel(
     }
     
     fun onStrokeStart(point: StrokePoint) {
-        _state.value = _state.value.copy(
-            currentStroke = listOf(point)
-        )
+        if (_state.value.eraserMode) {
+            // Eraser mode: try to erase strokes near this point
+            eraseStrokesNear(point)
+        } else {
+            _state.value = _state.value.copy(
+                currentStroke = listOf(point)
+            )
+        }
     }
     
     fun onStrokeMove(point: StrokePoint) {
-        _state.value = _state.value.copy(
-            currentStroke = _state.value.currentStroke + point
-        )
+        if (_state.value.eraserMode) {
+            // Continue erasing
+            eraseStrokesNear(point)
+        } else {
+            _state.value = _state.value.copy(
+                currentStroke = _state.value.currentStroke + point
+            )
+        }
     }
     
     fun onStrokeEnd() {
+        if (_state.value.eraserMode) {
+            // Nothing to do, erasing is done on move
+            return
+        }
+        
         val currentStroke = _state.value.currentStroke
         if (currentStroke.size >= 2) {
             val newStroke = Stroke(
@@ -109,6 +132,23 @@ class CanvasViewModel(
         }
     }
     
+    private fun eraseStrokesNear(point: StrokePoint) {
+        val eraseRadius = 30f // Pixels to consider for erasing
+        val strokesToKeep = _state.value.strokes.filter { stroke ->
+            // Check if any point in stroke is near the erase point
+            !stroke.points.any { strokePoint ->
+                val dx = strokePoint.x - point.x
+                val dy = strokePoint.y - point.y
+                sqrt(dx * dx + dy * dy) < eraseRadius
+            }
+        }
+        
+        if (strokesToKeep.size != _state.value.strokes.size) {
+            _state.value = _state.value.copy(strokes = strokesToKeep)
+            triggerAutoSave()
+        }
+    }
+    
     fun onViewportChange(offset: Offset) {
         _state.value = _state.value.copy(viewportOffset = offset)
     }
@@ -117,12 +157,21 @@ class CanvasViewModel(
         _state.value = _state.value.copy(zoom = zoom)
     }
     
-    fun toggleGrid() {
-        _state.value = _state.value.copy(gridEnabled = !_state.value.gridEnabled)
+    fun cycleGridMode() {
+        val nextMode = when (_state.value.gridMode) {
+            GridMode.NONE -> GridMode.LINES
+            GridMode.LINES -> GridMode.DOTS
+            GridMode.DOTS -> GridMode.NONE
+        }
+        _state.value = _state.value.copy(gridMode = nextMode)
     }
     
     fun toggleSnapToGrid() {
         _state.value = _state.value.copy(snapToGrid = !_state.value.snapToGrid)
+    }
+    
+    fun toggleEraserMode() {
+        _state.value = _state.value.copy(eraserMode = !_state.value.eraserMode)
     }
     
     fun setStrokeColor(color: Long) {
@@ -156,6 +205,16 @@ class CanvasViewModel(
                 )
             }
         }
+    }
+    
+    fun zoomIn() {
+        val newZoom = (_state.value.zoom * 1.25f).coerceAtMost(5f)
+        _state.value = _state.value.copy(zoom = newZoom)
+    }
+    
+    fun zoomOut() {
+        val newZoom = (_state.value.zoom / 1.25f).coerceAtLeast(0.1f)
+        _state.value = _state.value.copy(zoom = newZoom)
     }
     
     private fun triggerAutoSave() {

@@ -17,9 +17,7 @@ import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.withTransform
-import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.positionChange
 import com.gift.werkstatt.data.models.Stroke as StrokeData
 import com.gift.werkstatt.data.models.StrokePoint
 import com.gift.werkstatt.ui.theme.BauhausBlack
@@ -40,13 +38,17 @@ fun InfiniteCanvas(
     zoom: Float,
     onViewportChange: (Offset) -> Unit,
     onZoomChange: (Float) -> Unit,
-    gridEnabled: Boolean = true,
+    gridMode: GridMode = GridMode.LINES,
     snapToGrid: Boolean = false,
     gridSize: Float = 40f,
     strokeColor: Color = BauhausBlack,
     strokeWidth: Float = 4f,
+    eraserMode: Boolean = false,
     modifier: Modifier = Modifier
 ) {
+    // Eraser cursor color
+    val eraserColor = Color.Red.copy(alpha = 0.5f)
+    
     Canvas(
         modifier = modifier
             .fillMaxSize()
@@ -57,7 +59,7 @@ fun InfiniteCanvas(
                     var isDrawing = true
                     var lastPosition = firstDown.position
                     
-                    // Start drawing with first touch
+                    // Start drawing/erasing with first touch
                     val canvasPoint = screenToCanvas(firstDown.position, viewportOffset, zoom, snapToGrid, gridSize)
                     onStrokeStart(StrokePoint(canvasPoint.x, canvasPoint.y, 1f))
                     
@@ -68,7 +70,6 @@ fun InfiniteCanvas(
                         if (pointerCount >= 2) {
                             // Two or more fingers: pan and zoom
                             if (isDrawing) {
-                                // Was drawing, now stop and switch to pan/zoom
                                 onStrokeEnd()
                                 isDrawing = false
                             }
@@ -87,7 +88,7 @@ fun InfiniteCanvas(
                             
                             event.changes.forEach { it.consume() }
                         } else if (pointerCount == 1 && isDrawing) {
-                            // Single finger: draw
+                            // Single finger: draw/erase
                             val change = event.changes.firstOrNull { it.pressed }
                             if (change != null) {
                                 val canvasPt = screenToCanvas(change.position, viewportOffset, zoom, snapToGrid, gridSize)
@@ -98,7 +99,6 @@ fun InfiniteCanvas(
                         }
                     } while (event.changes.any { it.pressed })
                     
-                    // Finish stroke when all fingers lifted
                     if (isDrawing) {
                         onStrokeEnd()
                     }
@@ -110,9 +110,11 @@ fun InfiniteCanvas(
             scale(zoom, zoom, Offset.Zero)
             translate(viewportOffset.x, viewportOffset.y)
         }) {
-            // Draw grid
-            if (gridEnabled) {
-                drawGrid(gridSize)
+            // Draw grid based on mode
+            when (gridMode) {
+                GridMode.LINES -> drawLineGrid(gridSize)
+                GridMode.DOTS -> drawDottedGrid(gridSize)
+                GridMode.NONE -> { /* No grid */ }
             }
             
             // Draw completed strokes
@@ -120,7 +122,7 @@ fun InfiniteCanvas(
                 drawStroke(stroke.points, Color(stroke.color), stroke.width)
             }
             
-            // Draw current stroke being drawn
+            // Draw current stroke being drawn (not in eraser mode)
             if (currentStroke.isNotEmpty()) {
                 drawStroke(currentStroke, strokeColor, strokeWidth)
             }
@@ -152,12 +154,11 @@ private fun screenToCanvas(
 }
 
 /**
- * Draw Bauhaus-style grid
+ * Draw Bauhaus-style line grid
  */
-private fun DrawScope.drawGrid(gridSize: Float) {
+private fun DrawScope.drawLineGrid(gridSize: Float) {
     val gridColor = GridColor
     
-    // Calculate visible area with some padding
     val startX = -5000f
     val endX = 5000f
     val startY = -5000f
@@ -189,6 +190,35 @@ private fun DrawScope.drawGrid(gridSize: Float) {
 }
 
 /**
+ * Draw dotted grid
+ */
+private fun DrawScope.drawDottedGrid(gridSize: Float) {
+    val gridColor = GridColor
+    val dotRadius = 2f
+    
+    val startX = -5000f
+    val endX = 5000f
+    val startY = -5000f
+    val endY = 5000f
+    
+    var x = startX
+    while (x <= endX) {
+        var y = startY
+        while (y <= endY) {
+            val isMajor = x.toInt() % (gridSize.toInt() * 5) == 0 && 
+                          y.toInt() % (gridSize.toInt() * 5) == 0
+            drawCircle(
+                color = gridColor,
+                radius = if (isMajor) dotRadius * 2 else dotRadius,
+                center = Offset(x, y)
+            )
+            y += gridSize
+        }
+        x += gridSize
+    }
+}
+
+/**
  * Draw a stroke as a smooth path
  */
 private fun DrawScope.drawStroke(
@@ -205,14 +235,12 @@ private fun DrawScope.drawStroke(
             val prev = points[i - 1]
             val curr = points[i]
             
-            // Smooth curve using quadratic bezier
             val midX = (prev.x + curr.x) / 2
             val midY = (prev.y + curr.y) / 2
             
             quadraticBezierTo(prev.x, prev.y, midX, midY)
         }
         
-        // Connect to the last point
         val last = points.last()
         lineTo(last.x, last.y)
     }

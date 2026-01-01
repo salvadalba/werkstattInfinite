@@ -16,6 +16,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.gift.werkstatt.data.models.CanvasEntry
 import com.gift.werkstatt.ui.theme.BauhausBlue
+import com.gift.werkstatt.ui.theme.BauhausBlack
 import com.gift.werkstatt.ui.theme.BauhausLightGray
 import com.gift.werkstatt.ui.theme.BauhausWhite
 import java.text.SimpleDateFormat
@@ -62,13 +63,13 @@ fun EntryListScreen(
                     Text(
                         text = "No entries yet",
                         style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        color = BauhausBlack.copy(alpha = 0.6f)
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
                         text = "Tap + to create your first canvas",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                        color = BauhausBlack.copy(alpha = 0.4f)
                     )
                 }
             }
@@ -132,9 +133,9 @@ private fun EntryCard(
             .fillMaxWidth()
             .clickable(onClick = onClick),
         colors = CardDefaults.cardColors(
-            containerColor = BauhausWhite
+            containerColor = BauhausBlue  // Changed from white to Bauhaus blue
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Row(
             modifier = Modifier
@@ -147,6 +148,7 @@ private fun EntryCard(
                 Text(
                     text = entry.title,
                     style = MaterialTheme.typography.titleMedium,
+                    color = BauhausWhite,  // White text on blue background
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -154,7 +156,7 @@ private fun EntryCard(
                 Text(
                     text = "${entry.strokes.size} strokes • ${dateFormat.format(Date(entry.updatedAt))}",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    color = BauhausWhite.copy(alpha = 0.8f)  // Slightly transparent white
                 )
             }
             
@@ -162,7 +164,7 @@ private fun EntryCard(
                 Icon(
                     imageVector = Icons.Default.Delete,
                     contentDescription = "Delete",
-                    tint = MaterialTheme.colorScheme.error
+                    tint = BauhausWhite.copy(alpha = 0.8f)  // White delete icon
                 )
             }
         }
