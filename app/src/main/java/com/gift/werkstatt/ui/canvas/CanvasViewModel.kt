@@ -18,11 +18,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlin.math.sqrt
 
-enum class GridMode {
-    NONE,
-    LINES,
-    DOTS
-}
+// Use constants from FixedCanvas
+private const val CANVAS_WIDTH = 1500f
+private const val CANVAS_HEIGHT = 2250f
 
 data class CanvasState(
     val currentEntry: CanvasEntry? = null,
@@ -234,13 +232,13 @@ class CanvasViewModel(
     }
     
     fun addImage(filePath: String, width: Float, height: Float) {
-        // Place image at center of VISIBLE area (based on current viewport)
-        val viewCenterX = -_state.value.viewportOffset.x
-        val viewCenterY = -_state.value.viewportOffset.y
+        // Center image on fixed canvas
+        val centerX = CANVAS_WIDTH / 2 - width / 2
+        val centerY = CANVAS_HEIGHT / 2 - height / 2
         val newImage = CanvasImage(
             filePath = filePath,
-            x = viewCenterX - width / 2,
-            y = viewCenterY - height / 2,
+            x = centerX,
+            y = centerY,
             width = width,
             height = height
         )
@@ -269,6 +267,23 @@ class CanvasViewModel(
         _state.value = _state.value.copy(
             images = _state.value.images.filter { it.id != imageId }
         )
+        markUnsaved()
+    }
+    
+    fun resizeImage(imageId: String, deltaWidth: Float, deltaHeight: Float) {
+        val updatedImages = _state.value.images.map { img ->
+            if (img.id == imageId) {
+                val newWidth = (img.width + deltaWidth).coerceAtLeast(50f)
+                val newHeight = (img.height + deltaHeight).coerceAtLeast(50f)
+                img.copy(
+                    width = newWidth,
+                    height = newHeight
+                )
+            } else {
+                img
+            }
+        }
+        _state.value = _state.value.copy(images = updatedImages)
         markUnsaved()
     }
     

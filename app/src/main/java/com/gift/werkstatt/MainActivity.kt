@@ -119,8 +119,6 @@ fun WerkstattApp(repository: CanvasRepository) {
             onStrokeStart = viewModel::onStrokeStart,
             onStrokeMove = viewModel::onStrokeMove,
             onStrokeEnd = viewModel::onStrokeEnd,
-            onViewportChange = viewModel::onViewportChange,
-            onZoomChange = viewModel::onZoomChange,
             onOpenList = { 
                 viewModel.saveNow()
                 showList = true 
@@ -128,13 +126,12 @@ fun WerkstattApp(repository: CanvasRepository) {
             onUndo = viewModel::undoLastStroke,
             onCycleGrid = viewModel::cycleGridMode,
             onToggleEraser = viewModel::toggleEraserMode,
-            onZoomIn = viewModel::zoomIn,
-            onZoomOut = viewModel::zoomOut,
             onTitleClick = { showTitleDialog = true },
             onStrokeWidthChange = viewModel::setStrokeWidth,
             onStrokeColorChange = viewModel::setStrokeColor,
             onAddImage = viewModel::addImage,
             onUpdateImagePosition = viewModel::updateImagePosition,
+            onResizeImage = viewModel::resizeImage,
             onDeleteImage = viewModel::deleteImage
         )
     }

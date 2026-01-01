@@ -53,8 +53,8 @@ fun BrutalistToolbar(
     onToggleEraser: () -> Unit,
     onUndo: () -> Unit,
     onCycleGrid: () -> Unit,
-    onZoomIn: () -> Unit,
-    onZoomOut: () -> Unit,
+    onZoomIn: () -> Unit,  // Keep for compatibility but won't do anything
+    onZoomOut: () -> Unit, // Keep for compatibility but won't do anything
     onOpenList: () -> Unit,
     onExport: () -> Unit,
     onImport: () -> Unit,
@@ -66,7 +66,7 @@ fun BrutalistToolbar(
         modifier = modifier
             .fillMaxWidth()
             .background(BauhausBlue)
-            .padding(horizontal = 4.dp, vertical = 8.dp),
+            .padding(horizontal = 8.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -94,18 +94,6 @@ fun BrutalistToolbar(
             onClick = onCycleGrid,
             icon = Icons.Default.GridOn,
             contentDescription = "Cycle grid"
-        )
-        
-        BrutalistIconButton(
-            onClick = onZoomIn,
-            icon = Icons.Default.ZoomIn,
-            contentDescription = "Zoom in"
-        )
-        
-        BrutalistIconButton(
-            onClick = onZoomOut,
-            icon = Icons.Default.ZoomOut,
-            contentDescription = "Zoom out"
         )
         
         BrutalistIconButton(
