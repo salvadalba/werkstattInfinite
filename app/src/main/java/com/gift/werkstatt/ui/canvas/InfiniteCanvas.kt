@@ -2,9 +2,10 @@ package com.gift.werkstatt.ui.canvas
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -16,7 +17,9 @@ import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.withTransform
+import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
 import com.gift.werkstatt.data.models.Stroke as StrokeData
 import com.gift.werkstatt.data.models.StrokePoint
 import com.gift.werkstatt.ui.theme.BauhausBlack
@@ -44,46 +47,62 @@ fun InfiniteCanvas(
     strokeWidth: Float = 4f,
     modifier: Modifier = Modifier
 ) {
-    var isDrawing by remember { mutableStateOf(false) }
-    
     Canvas(
         modifier = modifier
             .fillMaxSize()
             .background(CanvasBackground)
-            // Handle pinch-to-zoom and two-finger pan
-            .pointerInput(Unit) {
-                detectTransformGestures { centroid, pan, zoomChange, _ ->
-                    if (!isDrawing) {
-                        // Update zoom with constraints
-                        val newZoom = (zoom * zoomChange).coerceIn(0.1f, 5f)
-                        onZoomChange(newZoom)
+            .pointerInput(viewportOffset, zoom, snapToGrid, gridSize) {
+                awaitEachGesture {
+                    val firstDown = awaitFirstDown()
+                    var isDrawing = true
+                    var lastPosition = firstDown.position
+                    
+                    // Start drawing with first touch
+                    val canvasPoint = screenToCanvas(firstDown.position, viewportOffset, zoom, snapToGrid, gridSize)
+                    onStrokeStart(StrokePoint(canvasPoint.x, canvasPoint.y, 1f))
+                    
+                    do {
+                        val event = awaitPointerEvent()
+                        val pointerCount = event.changes.count { it.pressed }
                         
-                        // Pan the viewport
-                        onViewportChange(viewportOffset + pan)
+                        if (pointerCount >= 2) {
+                            // Two or more fingers: pan and zoom
+                            if (isDrawing) {
+                                // Was drawing, now stop and switch to pan/zoom
+                                onStrokeEnd()
+                                isDrawing = false
+                            }
+                            
+                            val zoomChange = event.calculateZoom()
+                            val panChange = event.calculatePan()
+                            
+                            if (zoomChange != 1f) {
+                                val newZoom = (zoom * zoomChange).coerceIn(0.1f, 5f)
+                                onZoomChange(newZoom)
+                            }
+                            
+                            if (panChange != Offset.Zero) {
+                                onViewportChange(viewportOffset + panChange)
+                            }
+                            
+                            event.changes.forEach { it.consume() }
+                        } else if (pointerCount == 1 && isDrawing) {
+                            // Single finger: draw
+                            val change = event.changes.firstOrNull { it.pressed }
+                            if (change != null) {
+                                val canvasPt = screenToCanvas(change.position, viewportOffset, zoom, snapToGrid, gridSize)
+                                onStrokeMove(StrokePoint(canvasPt.x, canvasPt.y, 1f))
+                                lastPosition = change.position
+                                change.consume()
+                            }
+                        }
+                    } while (event.changes.any { it.pressed })
+                    
+                    // Finish stroke when all fingers lifted
+                    if (isDrawing) {
+                        onStrokeEnd()
                     }
                 }
-            }
-            // Handle drawing with single finger
-            .pointerInput(Unit) {
-                detectDragGestures(
-                    onDragStart = { offset ->
-                        isDrawing = true
-                        val canvasPoint = screenToCanvas(offset, viewportOffset, zoom, snapToGrid, gridSize)
-                        onStrokeStart(StrokePoint(canvasPoint.x, canvasPoint.y, 1f))
-                    },
-                    onDrag = { change, _ ->
-                        val canvasPoint = screenToCanvas(change.position, viewportOffset, zoom, snapToGrid, gridSize)
-                        onStrokeMove(StrokePoint(canvasPoint.x, canvasPoint.y, 1f))
-                    },
-                    onDragEnd = {
-                        isDrawing = false
-                        onStrokeEnd()
-                    },
-                    onDragCancel = {
-                        isDrawing = false
-                        onStrokeEnd()
-                    }
-                )
             }
     ) {
         // Apply viewport transform
