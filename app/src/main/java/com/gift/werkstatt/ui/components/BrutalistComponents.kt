@@ -65,6 +65,7 @@ fun BrutalistToolbar(
     onClear: () -> Unit,
     onToggleGrid: () -> Unit,
     onToggleSnap: () -> Unit,
+    onPenPicker: () -> Unit,
     gridEnabled: Boolean,
     snapEnabled: Boolean,
     canUndo: Boolean,
@@ -79,15 +80,9 @@ fun BrutalistToolbar(
         verticalAlignment = Alignment.CenterVertically
     ) {
         BrutalistButton(
-            onClick = onNewCanvas,
-            icon = Icons.Default.Add,
-            label = "NEW"
-        )
-        
-        BrutalistButton(
-            onClick = onOpenList,
-            icon = Icons.Default.List,
-            label = "LIST"
+            onClick = onPenPicker,
+            icon = Icons.Default.Edit,
+            label = "PEN"
         )
         
         BrutalistButton(
@@ -104,9 +99,15 @@ fun BrutalistToolbar(
         )
         
         BrutalistButton(
-            onClick = onToggleSnap,
-            icon = if (snapEnabled) Icons.Default.FilterCenterFocus else Icons.Default.CenterFocusWeak,
-            label = "SNAP"
+            onClick = onNewCanvas,
+            icon = Icons.Default.Add,
+            label = "NEW"
+        )
+        
+        BrutalistButton(
+            onClick = onOpenList,
+            icon = Icons.Default.List,
+            label = "LIST"
         )
         
         BrutalistButton(
@@ -177,6 +178,123 @@ fun CanvasTopBar(
                 contentDescription = "Saved",
                 tint = BauhausWhite.copy(alpha = 0.7f)
             )
+        }
+    }
+}
+
+/**
+ * Pen picker with stroke width and color options
+ */
+@Composable
+fun PenPicker(
+    currentWidth: Float,
+    currentColor: Long,
+    onWidthSelected: (Float) -> Unit,
+    onColorSelected: (Long) -> Unit,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val strokeWidths = listOf(2f, 4f, 8f, 12f, 20f)
+    val colors = listOf(
+        0xFF1A1A1A, // Black
+        0xFF006392, // Bauhaus Blue
+        0xFFE53935, // Red
+        0xFF43A047, // Green
+        0xFFFB8C00, // Orange
+        0xFF8E24AA  // Purple
+    )
+    
+    Card(
+        modifier = modifier.padding(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "PEN SIZE",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
+            
+            // Stroke width options
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.padding(bottom = 16.dp)
+            ) {
+                strokeWidths.forEach { width ->
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .background(
+                                if (currentWidth == width) 
+                                    BauhausBlue 
+                                else 
+                                    Color.LightGray,
+                                shape = MaterialTheme.shapes.small
+                            )
+                            .clickable { onWidthSelected(width) },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(width.dp.coerceAtMost(32.dp))
+                                .background(Color.White, shape = MaterialTheme.shapes.extraSmall)
+                        )
+                    }
+                }
+            }
+            
+            Text(
+                text = "COLOR",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
+            
+            // Color options
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.padding(bottom = 16.dp)
+            ) {
+                colors.forEach { color ->
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .background(
+                                Color(color),
+                                shape = MaterialTheme.shapes.small
+                            )
+                            .clickable { onColorSelected(color) }
+                            .then(
+                                if (currentColor == color) {
+                                    Modifier.padding(2.dp)
+                                } else {
+                                    Modifier
+                                }
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (currentColor == color) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = "Selected",
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                }
+            }
+            
+            // Done button
+            Button(
+                onClick = onDismiss,
+                colors = ButtonDefaults.buttonColors(containerColor = BauhausBlue),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("DONE")
+            }
         }
     }
 }

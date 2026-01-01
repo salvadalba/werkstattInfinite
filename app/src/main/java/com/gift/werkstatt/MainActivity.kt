@@ -126,7 +126,9 @@ fun WerkstattApp(repository: CanvasRepository) {
             onToggleSnap = viewModel::toggleSnapToGrid,
             onTitleClick = {
                 showTitleDialog = true
-            }
+            },
+            onStrokeWidthChange = viewModel::setStrokeWidth,
+            onStrokeColorChange = viewModel::setStrokeColor
         )
     }
 }
