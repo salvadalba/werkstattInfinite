@@ -132,7 +132,8 @@ fun WerkstattApp(repository: CanvasRepository) {
             onZoomOut = viewModel::zoomOut,
             onTitleClick = { showTitleDialog = true },
             onStrokeWidthChange = viewModel::setStrokeWidth,
-            onStrokeColorChange = viewModel::setStrokeColor
+            onStrokeColorChange = viewModel::setStrokeColor,
+            onAddImage = viewModel::addImage
         )
     }
 }

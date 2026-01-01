@@ -28,6 +28,19 @@ data class Stroke(
 )
 
 /**
+ * Represents an imported image on the canvas
+ */
+data class CanvasImage(
+    val id: String = java.util.UUID.randomUUID().toString(),
+    val filePath: String,  // Path to saved image file
+    val x: Float = 0f,     // Position on canvas
+    val y: Float = 0f,
+    val width: Float = 200f,  // Display dimensions
+    val height: Float = 200f,
+    val timestamp: Long = System.currentTimeMillis()
+)
+
+/**
  * Represents a canvas/journal entry
  */
 @Entity(tableName = "canvas_entries")
@@ -37,6 +50,7 @@ data class CanvasEntry(
     val id: String = java.util.UUID.randomUUID().toString(),
     val title: String = "Untitled",
     val strokes: List<Stroke> = emptyList(),
+    val images: List<CanvasImage> = emptyList(),
     val viewportX: Float = 0f,
     val viewportY: Float = 0f,
     val zoom: Float = 1f,
@@ -58,6 +72,21 @@ class CanvasConverters {
     @TypeConverter
     fun toStrokeList(json: String): List<Stroke> {
         val type = object : TypeToken<List<Stroke>>() {}.type
+        return try {
+            gson.fromJson(json, type) ?: emptyList()
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+    
+    @TypeConverter
+    fun fromImageList(images: List<CanvasImage>): String {
+        return gson.toJson(images)
+    }
+    
+    @TypeConverter
+    fun toImageList(json: String): List<CanvasImage> {
+        val type = object : TypeToken<List<CanvasImage>>() {}.type
         return try {
             gson.fromJson(json, type) ?: emptyList()
         } catch (e: Exception) {

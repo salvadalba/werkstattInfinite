@@ -5,6 +5,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gift.werkstatt.data.models.CanvasEntry
+import com.gift.werkstatt.data.models.CanvasImage
 import com.gift.werkstatt.data.models.Stroke
 import com.gift.werkstatt.data.models.StrokePoint
 import com.gift.werkstatt.data.repository.CanvasRepository
@@ -26,6 +27,7 @@ enum class GridMode {
 data class CanvasState(
     val currentEntry: CanvasEntry? = null,
     val strokes: List<Stroke> = emptyList(),
+    val images: List<CanvasImage> = emptyList(),
     val currentStroke: List<StrokePoint> = emptyList(),
     val viewportOffset: Offset = Offset.Zero,
     val zoom: Float = 1f,
@@ -77,6 +79,7 @@ class CanvasViewModel(
                 _state.value = _state.value.copy(
                     currentEntry = it,
                     strokes = it.strokes,
+                    images = it.images,
                     viewportOffset = Offset(it.viewportX, it.viewportY),
                     zoom = it.zoom,
                     isLoading = false
@@ -93,6 +96,7 @@ class CanvasViewModel(
             _state.value = _state.value.copy(
                 currentEntry = entry,
                 strokes = emptyList(),
+                images = emptyList(),
                 viewportOffset = Offset.Zero,
                 zoom = 1f
             )
@@ -229,6 +233,22 @@ class CanvasViewModel(
         _state.value = _state.value.copy(zoom = newZoom)
     }
     
+    fun addImage(filePath: String, width: Float, height: Float) {
+        val centerX = -_state.value.viewportOffset.x
+        val centerY = -_state.value.viewportOffset.y
+        val newImage = CanvasImage(
+            filePath = filePath,
+            x = centerX - width / 2,
+            y = centerY - height / 2,
+            width = width,
+            height = height
+        )
+        _state.value = _state.value.copy(
+            images = _state.value.images + newImage
+        )
+        markUnsaved()
+    }
+    
     private fun markUnsaved() {
         hasUnsavedChanges = true
     }
@@ -250,6 +270,7 @@ class CanvasViewModel(
         repository.saveEntry(
             entry.copy(
                 strokes = _state.value.strokes,
+                images = _state.value.images,
                 viewportX = _state.value.viewportOffset.x,
                 viewportY = _state.value.viewportOffset.y,
                 zoom = _state.value.zoom

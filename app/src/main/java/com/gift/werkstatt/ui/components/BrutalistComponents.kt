@@ -57,6 +57,7 @@ fun BrutalistToolbar(
     onZoomOut: () -> Unit,
     onOpenList: () -> Unit,
     onExport: () -> Unit,
+    onImport: () -> Unit,
     eraserMode: Boolean,
     canUndo: Boolean,
     modifier: Modifier = Modifier
@@ -65,7 +66,7 @@ fun BrutalistToolbar(
         modifier = modifier
             .fillMaxWidth()
             .background(BauhausBlue)
-            .padding(horizontal = 8.dp, vertical = 8.dp),
+            .padding(horizontal = 4.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -105,6 +106,12 @@ fun BrutalistToolbar(
             onClick = onZoomOut,
             icon = Icons.Default.ZoomOut,
             contentDescription = "Zoom out"
+        )
+        
+        BrutalistIconButton(
+            onClick = onImport,
+            icon = Icons.Default.Image,
+            contentDescription = "Import image"
         )
         
         BrutalistIconButton(
