@@ -10,12 +10,19 @@ import android.graphics.Path
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.core.content.FileProvider
 import com.gift.werkstatt.ui.canvas.CanvasState
@@ -32,6 +39,7 @@ import java.io.FileOutputStream
 import java.util.UUID
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.roundToInt
 
 @Composable
 fun CanvasScreen(
@@ -51,10 +59,13 @@ fun CanvasScreen(
     onStrokeWidthChange: (Float) -> Unit,
     onStrokeColorChange: (Long) -> Unit,
     onAddImage: (String, Float, Float) -> Unit,
+    onUpdateImagePosition: (String, Float, Float) -> Unit,
+    onDeleteImage: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var showPenPicker by remember { mutableStateOf(false) }
     val context = LocalContext.current
+    val density = LocalDensity.current
     
     // Image picker launcher
     val imagePickerLauncher = rememberLauncherForActivityResult(
@@ -65,8 +76,8 @@ fun CanvasScreen(
             if (savedPath != null) {
                 val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
                 BitmapFactory.decodeFile(savedPath, options)
-                // Scale down to max 300 pixels width
-                val maxWidth = 300f
+                // Scale down to max 200 pixels width for display
+                val maxWidth = 200f
                 val scale = if (options.outWidth > maxWidth) maxWidth / options.outWidth else 1f
                 val width = options.outWidth * scale
                 val height = options.outHeight * scale
@@ -84,8 +95,9 @@ fun CanvasScreen(
                 onTitleClick = onTitleClick
             )
             
-            // Canvas area - images are now rendered INSIDE the canvas
+            // Canvas area with touch overlays for images
             Box(modifier = Modifier.weight(1f)) {
+                // Main canvas (renders images + strokes)
                 InfiniteCanvas(
                     strokes = state.strokes,
                     images = state.images,
@@ -103,6 +115,43 @@ fun CanvasScreen(
                     strokeWidth = state.strokeWidth,
                     eraserMode = state.eraserMode
                 )
+                
+                // Invisible touch targets for each image (drag + long-press to delete)
+                state.images.forEach { canvasImage ->
+                    val screenX = with(density) { 
+                        ((canvasImage.x + state.viewportOffset.x) * state.zoom).dp.toPx() 
+                    }
+                    val screenY = with(density) { 
+                        ((canvasImage.y + state.viewportOffset.y) * state.zoom).dp.toPx() 
+                    }
+                    val imgWidth = with(density) { (canvasImage.width * state.zoom).dp.toPx() }
+                    val imgHeight = with(density) { (canvasImage.height * state.zoom).dp.toPx() }
+                    
+                    Box(
+                        modifier = Modifier
+                            .offset { IntOffset(screenX.roundToInt(), screenY.roundToInt()) }
+                            .size(
+                                width = with(density) { imgWidth.toDp() },
+                                height = with(density) { imgHeight.toDp() }
+                            )
+                            .pointerInput(canvasImage.id, state.zoom) {
+                                detectDragGestures { change, dragAmount ->
+                                    change.consume()
+                                    // Convert screen delta to canvas delta
+                                    val canvasDeltaX = dragAmount.x / state.zoom / density.density
+                                    val canvasDeltaY = dragAmount.y / state.zoom / density.density
+                                    onUpdateImagePosition(canvasImage.id, canvasDeltaX, canvasDeltaY)
+                                }
+                            }
+                            .pointerInput(canvasImage.id) {
+                                detectTapGestures(
+                                    onLongPress = {
+                                        onDeleteImage(canvasImage.id)
+                                    }
+                                )
+                            }
+                    )
+                }
             }
             
             // Bottom toolbar
