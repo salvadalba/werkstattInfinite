@@ -234,11 +234,13 @@ class CanvasViewModel(
     }
     
     fun addImage(filePath: String, width: Float, height: Float) {
-        // Place image at center of visible canvas area (0,0 in canvas coordinates)
+        // Place image at center of VISIBLE area (based on current viewport)
+        val viewCenterX = -_state.value.viewportOffset.x
+        val viewCenterY = -_state.value.viewportOffset.y
         val newImage = CanvasImage(
             filePath = filePath,
-            x = -width / 2,
-            y = -height / 2,
+            x = viewCenterX - width / 2,
+            y = viewCenterY - height / 2,
             width = width,
             height = height
         )

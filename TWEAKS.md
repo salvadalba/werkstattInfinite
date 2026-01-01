@@ -33,7 +33,22 @@
 
 ### Additional suggestion
 
-3. The eraser should work on the photo aswell. Either the whole photo or the strokes.
+1. The eraser should work on the photo aswell. Either the whole photo or the strokes.
+
+### Success
+
+The export works as we planned it's all popoulated.
+
+----
+
+### Debbuging
+
+1. The smoothness still not there, try maybe downsampling by 4x?
+2. Always when you import the photo it goes left upper side of the canvas and it overlays the title of the canvas (bug)
+
+### Additional options
+
+1. Eraser should two functions, one erase whole photo. Second Erase strokes.
 
 ### Success
 

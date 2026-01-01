@@ -67,7 +67,7 @@ fun InfiniteCanvas(
                 try {
                     // Decode with downsampling for performance
                     val options = BitmapFactory.Options().apply {
-                        inSampleSize = 2 // Load at half resolution for speed
+                        inSampleSize = 4 // Load at quarter resolution for speed
                     }
                     val bitmap = BitmapFactory.decodeFile(canvasImage.filePath, options)
                     val imageBitmap = bitmap?.asImageBitmap()
