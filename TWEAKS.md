@@ -20,3 +20,21 @@
 1. Problems with import is that the photo is imported randomly and cannot be manipulated it's stays where it is imported.
 
 2. Export the whole populated area, add optional extra features regarding size (now auto, 1:1).
+
+----
+
+### Debbuging
+
+1. It's not smooth as before, would the autosave time to 120seconds help? The autosave is not as important as the smoothness.
+
+2. When imported the photo is out of the white canvas, my guess is that the white canvas is right bottom and when i import the photo it goes on the center of the surface of canvas as we said, but i think the white canvas should be on center.
+
+3. The movement manipulation of the canvas when the photo is imported is sluggish and is slow, we should compromise with smooothness and speed as the most important thing.
+
+### Additional suggestion
+
+3. The eraser should work on the photo aswell. Either the whole photo or the strokes.
+
+### Success
+
+The export works as we planned it's all popoulated.

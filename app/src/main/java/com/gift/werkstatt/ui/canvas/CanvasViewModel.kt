@@ -59,10 +59,10 @@ class CanvasViewModel(
             }
         }
         
-        // Periodic auto-save every 30 seconds
+        // Periodic auto-save every 120 seconds (2 minutes)
         viewModelScope.launch {
             while (true) {
-                delay(30_000) // 30 seconds
+                delay(120_000) // 120 seconds
                 if (hasUnsavedChanges) {
                     saveCurrentEntry()
                     hasUnsavedChanges = false

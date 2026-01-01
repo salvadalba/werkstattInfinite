@@ -54,14 +54,29 @@ fun InfiniteCanvas(
     eraserMode: Boolean = false,
     modifier: Modifier = Modifier
 ) {
-    // Load images as ImageBitmaps (with caching)
-    val loadedImages = remember(images) {
+    // Cache loaded images by file path to avoid re-decoding
+    val imageCache = remember { mutableMapOf<String, ImageBitmap?>() }
+    
+    // Load/cache images
+    val loadedImages = remember(images.map { it.filePath }) {
         images.mapNotNull { canvasImage ->
-            try {
-                val bitmap = BitmapFactory.decodeFile(canvasImage.filePath)
-                bitmap?.asImageBitmap()?.let { canvasImage to it }
-            } catch (e: Exception) {
-                null
+            val cached = imageCache[canvasImage.filePath]
+            if (cached != null) {
+                canvasImage to cached
+            } else {
+                try {
+                    // Decode with downsampling for performance
+                    val options = BitmapFactory.Options().apply {
+                        inSampleSize = 2 // Load at half resolution for speed
+                    }
+                    val bitmap = BitmapFactory.decodeFile(canvasImage.filePath, options)
+                    val imageBitmap = bitmap?.asImageBitmap()
+                    imageCache[canvasImage.filePath] = imageBitmap
+                    imageBitmap?.let { canvasImage to it }
+                } catch (e: Exception) {
+                    imageCache[canvasImage.filePath] = null
+                    null
+                }
             }
         }
     }
