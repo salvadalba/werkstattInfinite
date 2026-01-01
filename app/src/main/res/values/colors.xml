@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Bauhaus Color Palette -->
+    <color name="bauhaus_blue">#006392</color>
+    <color name="bauhaus_gray">#808080</color>
+    <color name="bauhaus_white">#FFFFFF</color>
+    <color name="bauhaus_black">#1A1A1A</color>
+    <color name="bauhaus_light_gray">#E5E5E5</color>
+</resources>
