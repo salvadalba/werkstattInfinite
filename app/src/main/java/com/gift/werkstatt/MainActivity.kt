@@ -56,8 +56,9 @@ fun WerkstattApp(repository: CanvasRepository) {
     var showTitleDialog by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf<String?>(null) }
     
-    // Handle back button - go to list instead of closing app
+    // Handle back button - save and go to list instead of closing app
     BackHandler(enabled = !showList) {
+        viewModel.saveNow()
         showList = true
     }
     
@@ -120,7 +121,10 @@ fun WerkstattApp(repository: CanvasRepository) {
             onStrokeEnd = viewModel::onStrokeEnd,
             onViewportChange = viewModel::onViewportChange,
             onZoomChange = viewModel::onZoomChange,
-            onOpenList = { showList = true },
+            onOpenList = { 
+                viewModel.saveNow()
+                showList = true 
+            },
             onUndo = viewModel::undoLastStroke,
             onCycleGrid = viewModel::cycleGridMode,
             onToggleEraser = viewModel::toggleEraserMode,

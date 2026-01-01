@@ -47,12 +47,24 @@ class CanvasViewModel(
     val state: StateFlow<CanvasState> = _state.asStateFlow()
     
     private var autoSaveJob: Job? = null
+    private var hasUnsavedChanges = false
     
     init {
         // Load all entries
         viewModelScope.launch {
             repository.allEntries.collect { entries ->
                 _state.value = _state.value.copy(allEntries = entries)
+            }
+        }
+        
+        // Periodic auto-save every 30 seconds
+        viewModelScope.launch {
+            while (true) {
+                delay(30_000) // 30 seconds
+                if (hasUnsavedChanges) {
+                    saveCurrentEntry()
+                    hasUnsavedChanges = false
+                }
             }
         }
     }
@@ -126,7 +138,7 @@ class CanvasViewModel(
                 strokes = _state.value.strokes + newStroke,
                 currentStroke = emptyList()
             )
-            triggerAutoSave()
+            markUnsaved()
         } else {
             _state.value = _state.value.copy(currentStroke = emptyList())
         }
@@ -145,7 +157,7 @@ class CanvasViewModel(
         
         if (strokesToKeep.size != _state.value.strokes.size) {
             _state.value = _state.value.copy(strokes = strokesToKeep)
-            triggerAutoSave()
+            markUnsaved()
         }
     }
     
@@ -184,14 +196,14 @@ class CanvasViewModel(
     
     fun clearCanvas() {
         _state.value = _state.value.copy(strokes = emptyList())
-        triggerAutoSave()
+        markUnsaved()
     }
     
     fun undoLastStroke() {
         val strokes = _state.value.strokes
         if (strokes.isNotEmpty()) {
             _state.value = _state.value.copy(strokes = strokes.dropLast(1))
-            triggerAutoSave()
+            markUnsaved()
         }
     }
     
@@ -217,11 +229,17 @@ class CanvasViewModel(
         _state.value = _state.value.copy(zoom = newZoom)
     }
     
-    private fun triggerAutoSave() {
-        autoSaveJob?.cancel()
-        autoSaveJob = viewModelScope.launch {
-            delay(300) // Debounce 300ms
-            saveCurrentEntry()
+    private fun markUnsaved() {
+        hasUnsavedChanges = true
+    }
+    
+    // Call when leaving canvas to save immediately
+    fun saveNow() {
+        if (hasUnsavedChanges) {
+            viewModelScope.launch {
+                saveCurrentEntry()
+                hasUnsavedChanges = false
+            }
         }
     }
     
