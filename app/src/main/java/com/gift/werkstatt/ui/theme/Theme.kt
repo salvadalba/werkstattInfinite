@@ -3,7 +3,6 @@ package com.gift.werkstatt.ui.theme
 import android.app.Activity
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
@@ -12,44 +11,31 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 private val LightColorScheme = lightColorScheme(
-    primary = BauhausBlue,
-    onPrimary = BauhausWhite,
-    secondary = BauhausGray,
-    onSecondary = BauhausWhite,
-    background = CanvasBackground,
-    onBackground = BauhausBlack,
-    surface = BauhausWhite,
-    onSurface = BauhausBlack,
-    surfaceVariant = BauhausLightGray,
-    onSurfaceVariant = BauhausBlack
-)
-
-private val DarkColorScheme = darkColorScheme(
-    primary = BauhausBlue,
-    onPrimary = BauhausWhite,
-    secondary = BauhausGray,
-    onSecondary = BauhausWhite,
-    background = BauhausDarkGray,
-    onBackground = BauhausWhite,
-    surface = BauhausBlack,
-    onSurface = BauhausWhite,
-    surfaceVariant = BauhausDarkGray,
-    onSurfaceVariant = BauhausLightGray
+    primary = AppAccent,
+    onPrimary = AppBackground,
+    secondary = AppPrimary,
+    onSecondary = AppBackground,
+    background = AppBackground,
+    onBackground = AppPrimary,
+    surface = AppSurface,
+    onSurface = AppPrimary,
+    error = AppError,
+    onError = AppBackground,
+    outline = AppSubtle
 )
 
 @Composable
-fun WerkstattInfiniteTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+fun WerkstattTheme(
     content: @Composable () -> Unit
 ) {
-    val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
-    
+    val colorScheme = LightColorScheme
     val view = LocalView.current
+
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            window.statusBarColor = colorScheme.primary.toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = false
+            window.statusBarColor = AppBackground.toArgb()
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = true
         }
     }
 
@@ -59,3 +45,7 @@ fun WerkstattInfiniteTheme(
         content = content
     )
 }
+
+// Legacy alias
+@Composable
+fun WerkstattInfiniteTheme(content: @Composable () -> Unit) = WerkstattTheme(content)
