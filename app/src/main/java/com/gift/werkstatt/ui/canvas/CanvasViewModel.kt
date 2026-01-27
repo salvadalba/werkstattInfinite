@@ -4,6 +4,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.geometry.Offset
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.gift.werkstatt.data.models.BrushDefaults
+import com.gift.werkstatt.data.models.BrushType
 import com.gift.werkstatt.data.models.CanvasEntry
 import com.gift.werkstatt.data.models.CanvasImage
 import com.gift.werkstatt.data.models.Stroke
@@ -15,6 +17,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlin.math.sqrt
 
@@ -34,7 +37,11 @@ data class CanvasState(
     val eraserMode: Boolean = false,
     val isSaving: Boolean = false,
     val isLoading: Boolean = false,
-    val allEntries: List<CanvasEntry> = emptyList()
+    val allEntries: List<CanvasEntry> = emptyList(),
+    val brushType: BrushType = BrushType.PEN,
+    val brushOpacity: Float = 1f,
+    val recentColors: List<Long> = emptyList(),
+    val editingImageId: String? = null
 )
 
 class CanvasViewModel(
@@ -54,17 +61,28 @@ class CanvasViewModel(
                 _state.value = _state.value.copy(allEntries = entries)
             }
         }
-        
-        // Periodic auto-save every 120 seconds (2 minutes)
-        viewModelScope.launch {
-            while (true) {
+
+        // Start auto-save with proper cancellation support
+        startAutoSave()
+    }
+
+    private fun startAutoSave() {
+        autoSaveJob?.cancel()
+        autoSaveJob = viewModelScope.launch {
+            while (isActive) { // Check if coroutine is still active
                 delay(120_000) // 120 seconds
-                if (hasUnsavedChanges) {
+                if (hasUnsavedChanges && isActive) {
                     saveCurrentEntry()
                     hasUnsavedChanges = false
                 }
             }
         }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        autoSaveJob?.cancel()
+        autoSaveJob = null
     }
     
     fun loadEntry(id: String) {
@@ -132,7 +150,9 @@ class CanvasViewModel(
             val newStroke = Stroke(
                 points = currentStroke,
                 color = _state.value.strokeColor,
-                width = _state.value.strokeWidth
+                width = _state.value.strokeWidth,
+                brushType = _state.value.brushType,
+                opacity = _state.value.brushOpacity
             )
             _state.value = _state.value.copy(
                 strokes = _state.value.strokes + newStroke,
@@ -189,9 +209,42 @@ class CanvasViewModel(
     fun setStrokeColor(color: Long) {
         _state.value = _state.value.copy(strokeColor = color)
     }
-    
+
     fun setStrokeWidth(width: Float) {
         _state.value = _state.value.copy(strokeWidth = width)
+    }
+
+    fun setBrushType(type: BrushType) {
+        val defaults = BrushDefaults.forType(type)
+        _state.value = _state.value.copy(
+            brushType = type,
+            brushOpacity = defaults.opacity
+        )
+    }
+
+    fun setBrushSize(size: Float) {
+        _state.value = _state.value.copy(strokeWidth = size)
+    }
+
+    fun setColor(color: Long) {
+        val recentColors = _state.value.recentColors.toMutableList()
+        recentColors.remove(color) // Remove if already exists
+        recentColors.add(0, color) // Add to front
+        if (recentColors.size > 8) {
+            recentColors.removeLast()
+        }
+        _state.value = _state.value.copy(
+            strokeColor = color,
+            recentColors = recentColors
+        )
+    }
+
+    fun enterImageEditMode(imageId: String) {
+        _state.value = _state.value.copy(editingImageId = imageId)
+    }
+
+    fun exitImageEditMode() {
+        _state.value = _state.value.copy(editingImageId = null)
     }
     
     fun clearCanvas() {
