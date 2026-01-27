@@ -7,23 +7,26 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
+import com.gift.werkstatt.data.models.BrushType
 import com.gift.werkstatt.data.models.CanvasImage
 import com.gift.werkstatt.data.models.Stroke as StrokeData
 import com.gift.werkstatt.data.models.StrokePoint
+import com.gift.werkstatt.ui.canvas.BrushEngine.drawBrushStroke
 import com.gift.werkstatt.ui.theme.BauhausBlack
 import com.gift.werkstatt.ui.theme.CanvasBackground
 import com.gift.werkstatt.ui.theme.GridColor
@@ -54,12 +57,21 @@ fun FixedCanvas(
     gridSize: Float = 40f,
     strokeColor: Color = BauhausBlack,
     strokeWidth: Float = 4f,
+    brushType: BrushType = BrushType.PEN,
+    brushOpacity: Float = 1f,
     eraserMode: Boolean = false,
+    editingImageId: String? = null,
     modifier: Modifier = Modifier
 ) {
     // Cache loaded images by file path
     val imageCache = remember { mutableMapOf<String, ImageBitmap?>() }
-    
+
+    // Clean up cache for removed images to prevent memory leaks
+    LaunchedEffect(images.map { it.filePath }) {
+        val currentPaths = images.map { it.filePath }.toSet()
+        imageCache.keys.retainAll(currentPaths)
+    }
+
     val loadedImages = remember(images.map { it.filePath }) {
         images.mapNotNull { canvasImage ->
             val cached = imageCache[canvasImage.filePath]
@@ -67,9 +79,26 @@ fun FixedCanvas(
                 canvasImage to cached
             } else {
                 try {
+                    // Calculate optimal sample size based on target display size
                     val options = BitmapFactory.Options().apply {
-                        inSampleSize = 2 // Load at half resolution
+                        inJustDecodeBounds = true
                     }
+                    BitmapFactory.decodeFile(canvasImage.filePath, options)
+
+                    val targetWidth = (canvasImage.width * 2).toInt() // 2x for quality
+                    val targetHeight = (canvasImage.height * 2).toInt()
+                    val inSampleSize = calculateInSampleSize(
+                        options.outWidth,
+                        options.outHeight,
+                        targetWidth,
+                        targetHeight
+                    )
+
+                    options.apply {
+                        this.inSampleSize = inSampleSize
+                        inJustDecodeBounds = false
+                    }
+
                     val bitmap = BitmapFactory.decodeFile(canvasImage.filePath, options)
                     val imageBitmap = bitmap?.asImageBitmap()
                     imageCache[canvasImage.filePath] = imageBitmap
@@ -90,9 +119,12 @@ fun FixedCanvas(
             .fillMaxWidth()
             .aspectRatio(CANVAS_WIDTH / CANVAS_HEIGHT)
             .background(CanvasBackground)
-            .pointerInput(Unit) {
+            .pointerInput(editingImageId) {
+                // Only handle drawing if NOT in image edit mode
+                if (editingImageId != null) return@pointerInput
+
                 canvasSize = Offset(size.width.toFloat(), size.height.toFloat())
-                
+
                 awaitEachGesture {
                     val firstDown = awaitFirstDown()
                     
@@ -144,14 +176,30 @@ fun FixedCanvas(
             )
         }
         
-        // Draw completed strokes ON TOP of images
+        // Draw completed strokes using brush engine
         strokes.forEach { stroke ->
-            drawStrokeScaled(stroke.points, Color(stroke.color), stroke.width, scaleX, scaleY)
+            drawBrushStroke(
+                points = stroke.points,
+                color = Color(stroke.color),
+                width = stroke.width,
+                brushType = stroke.brushType,
+                opacity = stroke.opacity,
+                scaleX = scaleX,
+                scaleY = scaleY
+            )
         }
-        
+
         // Draw current stroke
         if (currentStroke.isNotEmpty()) {
-            drawStrokeScaled(currentStroke, strokeColor, strokeWidth, scaleX, scaleY)
+            drawBrushStroke(
+                points = currentStroke,
+                color = strokeColor,
+                width = strokeWidth,
+                brushType = brushType,
+                opacity = brushOpacity,
+                scaleX = scaleX,
+                scaleY = scaleY
+            )
         }
     }
 }
@@ -207,39 +255,23 @@ private fun DrawScope.drawDottedGrid(gridSize: Float, scaleX: Float, scaleY: Flo
     }
 }
 
-private fun DrawScope.drawStrokeScaled(
-    points: List<StrokePoint>,
-    color: Color,
-    width: Float,
-    scaleX: Float,
-    scaleY: Float
-) {
-    if (points.size < 2) return
-    
-    val path = Path().apply {
-        moveTo(points[0].x * scaleX, points[0].y * scaleY)
-        
-        for (i in 1 until points.size) {
-            val prev = points[i - 1]
-            val curr = points[i]
-            
-            val midX = (prev.x + curr.x) / 2 * scaleX
-            val midY = (prev.y + curr.y) / 2 * scaleY
-            
-            quadraticBezierTo(prev.x * scaleX, prev.y * scaleY, midX, midY)
+/**
+ * Calculate optimal inSampleSize for BitmapFactory to efficiently load images
+ */
+private fun calculateInSampleSize(
+    width: Int,
+    height: Int,
+    reqWidth: Int,
+    reqHeight: Int
+): Int {
+    var inSampleSize = 1
+    if (height > reqHeight || width > reqWidth) {
+        val halfHeight = height / 2
+        val halfWidth = width / 2
+        while (halfHeight / inSampleSize >= reqHeight &&
+            halfWidth / inSampleSize >= reqWidth) {
+            inSampleSize *= 2
         }
-        
-        val last = points.last()
-        lineTo(last.x * scaleX, last.y * scaleY)
     }
-    
-    drawPath(
-        path = path,
-        color = color,
-        style = Stroke(
-            width = width * scaleX, // Scale stroke width too
-            cap = StrokeCap.Round,
-            join = StrokeJoin.Round
-        )
-    )
+    return inSampleSize
 }
