@@ -166,7 +166,7 @@ fun ColorPicker(
             edgePadding = 0.dp,
             indicator = { tabPositions ->
                 if (selectedPaletteIndex < tabPositions.size) {
-                    TabRowDefaults.SecondaryIndicator(
+                    TabRowDefaults.Indicator(
                         modifier = Modifier.tabIndicatorOffset(tabPositions[selectedPaletteIndex]),
                         color = AppAccent
                     )

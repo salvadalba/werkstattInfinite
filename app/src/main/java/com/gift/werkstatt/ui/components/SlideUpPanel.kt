@@ -132,8 +132,8 @@ fun SlideUpPanel(
             // 5. Spacer (8.dp)
             Spacer(modifier = Modifier.height(8.dp))
 
-            // 6. HorizontalDivider
-            HorizontalDivider(color = AppSubtle)
+            // 6. Divider
+            Divider(color = AppSubtle)
 
             // 7. ColorPicker component
             ColorPicker(
