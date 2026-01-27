@@ -16,9 +16,9 @@ import com.gift.werkstatt.data.database.CanvasDatabase
 import com.gift.werkstatt.data.repository.CanvasRepository
 import com.gift.werkstatt.ui.canvas.CanvasViewModel
 import com.gift.werkstatt.ui.screens.CanvasScreen
-import com.gift.werkstatt.ui.screens.EntryListScreen
+import com.gift.werkstatt.ui.screens.GalleryScreen
 import com.gift.werkstatt.ui.screens.TitleEditDialog
-import com.gift.werkstatt.ui.theme.WerkstattInfiniteTheme
+import com.gift.werkstatt.ui.theme.WerkstattTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -28,7 +28,7 @@ class MainActivity : ComponentActivity() {
         val repository = CanvasRepository(database.canvasDao())
         
         setContent {
-            WerkstattInfiniteTheme {
+            WerkstattTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
@@ -54,8 +54,7 @@ fun WerkstattApp(repository: CanvasRepository) {
     val state by viewModel.state.collectAsState()
     var showList by remember { mutableStateOf(true) }
     var showTitleDialog by remember { mutableStateOf(false) }
-    var showDeleteConfirm by remember { mutableStateOf<String?>(null) }
-    
+
     // Handle back button - save and go to list instead of closing app
     BackHandler(enabled = !showList) {
         viewModel.saveNow()
@@ -74,43 +73,16 @@ fun WerkstattApp(repository: CanvasRepository) {
         )
     }
     
-    // Show delete confirmation
-    showDeleteConfirm?.let { entryId ->
-        androidx.compose.material3.AlertDialog(
-            onDismissRequest = { showDeleteConfirm = null },
-            title = { androidx.compose.material3.Text("Delete Canvas?") },
-            text = { androidx.compose.material3.Text("This action cannot be undone.") },
-            confirmButton = {
-                androidx.compose.material3.TextButton(
-                    onClick = {
-                        viewModel.deleteEntry(entryId)
-                        showDeleteConfirm = null
-                    }
-                ) {
-                    androidx.compose.material3.Text("Delete")
-                }
-            },
-            dismissButton = {
-                androidx.compose.material3.TextButton(onClick = { showDeleteConfirm = null }) {
-                    androidx.compose.material3.Text("Cancel")
-                }
-            }
-        )
-    }
-    
     if (showList) {
-        EntryListScreen(
+        GalleryScreen(
             entries = state.allEntries,
-            onEntryClick = { entry ->
-                viewModel.loadEntry(entry.id)
+            onEntryClick = { entryId ->
+                viewModel.loadEntry(entryId)
                 showList = false
             },
-            onNewEntry = {
+            onCreateNew = {
                 viewModel.createNewEntry()
                 showList = false
-            },
-            onDeleteEntry = { entry ->
-                showDeleteConfirm = entry.id
             }
         )
     } else {
@@ -119,20 +91,23 @@ fun WerkstattApp(repository: CanvasRepository) {
             onStrokeStart = viewModel::onStrokeStart,
             onStrokeMove = viewModel::onStrokeMove,
             onStrokeEnd = viewModel::onStrokeEnd,
-            onOpenList = { 
+            onNavigateBack = {
                 viewModel.saveNow()
-                showList = true 
+                showList = true
             },
             onUndo = viewModel::undoLastStroke,
             onCycleGrid = viewModel::cycleGridMode,
             onToggleEraser = viewModel::toggleEraserMode,
             onTitleClick = { showTitleDialog = true },
-            onStrokeWidthChange = viewModel::setStrokeWidth,
-            onStrokeColorChange = viewModel::setStrokeColor,
+            onBrushTypeChange = viewModel::setBrushType,
+            onBrushSizeChange = viewModel::setBrushSize,
+            onColorChange = viewModel::setColor,
             onAddImage = viewModel::addImage,
             onUpdateImagePosition = viewModel::updateImagePosition,
             onResizeImage = viewModel::resizeImage,
-            onDeleteImage = viewModel::deleteImage
+            onDeleteImage = viewModel::deleteImage,
+            onEnterImageEditMode = viewModel::enterImageEditMode,
+            onExitImageEditMode = viewModel::exitImageEditMode
         )
     }
 }
