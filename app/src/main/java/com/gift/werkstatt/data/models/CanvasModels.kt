@@ -24,6 +24,8 @@ data class Stroke(
     val points: List<StrokePoint> = emptyList(),
     val color: Long = 0xFF1A1A1A,
     val width: Float = 4f,
+    val brushType: BrushType = BrushType.PEN,
+    val opacity: Float = 1f,
     val timestamp: Long = System.currentTimeMillis()
 )
 
