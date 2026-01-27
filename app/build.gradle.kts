@@ -21,6 +21,11 @@ android {
         }
     }
 
+    // Room schema export for migration tracking
+    ksp {
+        arg("room.schemaLocation", "$projectDir/schemas")
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
@@ -74,7 +79,10 @@ dependencies {
     
     // Gson for JSON serialization
     implementation("com.google.code.gson:gson:2.10.1")
-    
+
+    // Coil for image loading
+    implementation("io.coil-kt:coil-compose:2.5.0")
+
     // Testing
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
