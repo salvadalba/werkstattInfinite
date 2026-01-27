@@ -57,7 +57,8 @@ data class CanvasEntry(
     val viewportY: Float = 0f,
     val zoom: Float = 1f,
     val createdAt: Long = System.currentTimeMillis(),
-    val updatedAt: Long = System.currentTimeMillis()
+    val updatedAt: Long = System.currentTimeMillis(),
+    val thumbnailPath: String? = null
 )
 
 /**
